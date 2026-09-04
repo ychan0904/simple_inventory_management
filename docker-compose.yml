@@ -1,0 +1,14 @@
+services:
+  web:
+    image: ghcr.io/ychan0904/simple_inventory_management:latest
+    ports:
+      - "127.0.0.1:8187:3000"
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: file:/app/data/inventory.db
+      AUTH_TRUST_HOST: "true"
+      TZ: Asia/Seoul
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
