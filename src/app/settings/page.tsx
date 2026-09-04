@@ -1,7 +1,8 @@
 import { logout } from "@/app/actions";
 import { AppShell } from "@/components/app-shell";
 import { ChangePasswordForm } from "@/components/change-password-form";
-import { requireUser } from "@/lib/authz";
+import { UserRowActions } from "@/components/user-row-actions";
+import { isStaff, requireUser } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -42,12 +43,13 @@ export default async function SettingsPage({
 }) {
   const currentUser = await requireUser();
   const { tab } = await searchParams;
-  const isAdmin = currentUser.role === "ADMIN";
-  const currentTab = isAdmin && tab === "users" ? "users" : "profile";
+  const canManageUsers = isStaff(currentUser.role);
+  const currentTab = canManageUsers && tab === "users" ? "users" : "profile";
 
   const users =
-    isAdmin && currentTab === "users"
+    canManageUsers && currentTab === "users"
       ? await prisma.user.findMany({
+          where: { role: { not: "SUPERADMIN" } },
           orderBy: [{ role: "asc" }, { name: "asc" }],
           select: {
             id: true,
@@ -60,7 +62,7 @@ export default async function SettingsPage({
 
   return (
     <AppShell title="설정" backHref="/">
-      {isAdmin ? (
+      {canManageUsers ? (
         <div className="mb-4 grid grid-cols-2 rounded-xl bg-stone-200/70 p-1">
           <a
             href="/settings"
@@ -110,6 +112,11 @@ export default async function SettingsPage({
                     {user.role === "ADMIN" ? "관리자" : "일반"}
                   </span>
                 </div>
+                <UserRowActions
+                  userId={user.id}
+                  name={user.name}
+                  canDelete={user.id !== currentUser.id}
+                />
               </li>
             ))}
           </ul>

@@ -1,0 +1,1 @@
+-- SQLite stores Role as TEXT. SUPERADMIN is a new allowed value.

@@ -147,6 +147,10 @@ export async function createUser(
     return { error: passwordError };
   }
 
+  if (loginId.toLowerCase() === "superadmin") {
+    return { error: "이미 사용 중인 아이디입니다." };
+  }
+
   const exists = await prisma.user.findUnique({ where: { loginId } });
   if (exists) {
     return { error: "이미 사용 중인 아이디입니다." };
@@ -162,7 +166,82 @@ export async function createUser(
   });
 
   revalidatePath("/settings");
-  redirect("/settings");
+  redirect("/settings?tab=users");
+}
+
+async function loadManagedUser(userId: string) {
+  if (!isRecordId(userId)) {
+    return { error: "잘못된 요청입니다." as const };
+  }
+
+  const target = await prisma.user.findUnique({ where: { id: userId } });
+  if (!target || target.role === "SUPERADMIN") {
+    return { error: "사용자를 찾을 수 없습니다." as const };
+  }
+  return { target };
+}
+
+export async function deleteUser(formData: FormData) {
+  const currentUser = await requireAdmin();
+  const gate = await limited("delete-user", 10, 10 * 60 * 1000);
+  if (!gate.ok) {
+    return;
+  }
+
+  const userId = readFormText(formData, "userId");
+  const loaded = await loadManagedUser(userId);
+  if ("error" in loaded) {
+    return;
+  }
+  if (loaded.target.id === currentUser.id) {
+    return;
+  }
+
+  await prisma.user.delete({ where: { id: loaded.target.id } });
+  revalidatePath("/settings");
+  redirect("/settings?tab=users");
+}
+
+export async function resetUserPassword(
+  userId: string,
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  await requireAdmin();
+  const gate = await limited("reset-password", 10, 10 * 60 * 1000);
+  if (!gate.ok) {
+    return { error: "요청이 너무 많습니다. 잠시 후 다시 시도하세요." };
+  }
+
+  const loaded = await loadManagedUser(userId);
+  if ("error" in loaded) {
+    return { error: loaded.error };
+  }
+
+  const password =
+    typeof formData.get("password") === "string"
+      ? (formData.get("password") as string)
+      : "";
+  const confirmPassword =
+    typeof formData.get("confirmPassword") === "string"
+      ? (formData.get("confirmPassword") as string)
+      : "";
+
+  const passwordError = validatePassword(password);
+  if (passwordError) {
+    return { error: passwordError };
+  }
+  if (password !== confirmPassword) {
+    return { error: "새 비밀번호가 서로 다릅니다." };
+  }
+
+  await prisma.user.update({
+    where: { id: loaded.target.id },
+    data: { passwordHash: await hash(password, 12) },
+  });
+
+  revalidatePath("/settings");
+  redirect("/settings?tab=users");
 }
 
 export async function createProduct(

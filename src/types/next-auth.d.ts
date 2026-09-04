@@ -6,7 +6,7 @@ declare module "next-auth" {
     id: string;
     loginId: string;
     name: string;
-    role: "ADMIN" | "USER";
+    role: "ADMIN" | "USER" | "SUPERADMIN";
   }
 
   interface Session {
@@ -14,7 +14,7 @@ declare module "next-auth" {
       id: string;
       loginId: string;
       name: string;
-      role: "ADMIN" | "USER";
+      role: "ADMIN" | "USER" | "SUPERADMIN";
     };
   }
 }
@@ -23,6 +23,6 @@ declare module "next-auth/jwt" {
   interface JWT {
     loginId?: string;
     name?: string;
-    role?: "ADMIN" | "USER";
+    role?: "ADMIN" | "USER" | "SUPERADMIN";
   }
 }

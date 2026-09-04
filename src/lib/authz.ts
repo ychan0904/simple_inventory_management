@@ -17,9 +17,13 @@ export async function requireUser() {
   return user;
 }
 
+export function isStaff(role: string) {
+  return role === "ADMIN" || role === "SUPERADMIN";
+}
+
 export async function requireAdmin() {
   const user = await requireUser();
-  if (user.role !== "ADMIN") {
+  if (!isStaff(user.role)) {
     redirect("/");
   }
   return user;
